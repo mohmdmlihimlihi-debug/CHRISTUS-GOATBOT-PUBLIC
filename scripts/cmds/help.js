@@ -1,192 +1,757 @@
-const { getPrefix } = global.utils;
-const { commands, aliases } = global.GoatBot;
+const fs = require("fs-extra");
+const axios = require("axios");
+const path = require("path");
 
-let fonts;
-try {
-  fonts = require('../../func/font.js');
-} catch (error) {
-  fonts = { bold: (t) => t, sansSerif: (t) => t, monospace: (t) => t, fancy: (t) => t };
-}
+// =========================================================
+// GIFS ديال help
+// =========================================================
 
-function toTitleCase(str) {
-  if (!str) return '';
-  return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
-}
+let lastGifIndex = -1;
+
+const helpGifs = [
+	"https://imglink.cc/cdn/IrXy58bCRZ.gif",
+	"https://imglink.cc/cdn/bD1tWxSh7T.gif",
+	"https://imglink.cc/cdn/8qEU-pMWxD.gif",
+	"https://imglink.cc/cdn/CCTFhWgLmH.gif",
+	"https://imglink.cc/cdn/2U4MdBoDWg.gif",
+	"https://imglink.cc/cdn/acUzfFSvUr.gif"
+];
 
 module.exports = {
-  config: {
-    name: "help",
-    aliases: [],
-    version: "3.1.1",
-    author: "Christus",
-    countDown: 5,
-    role: 0,
-    description: {
-      fr: "🧰 Affiche la liste des commandes disponibles et leurs détails"
-    },
-    category: "info",
-    guide: {
-      fr: "{pn} : menu principal\n{pn} <commande> : infos sur une commande\n{pn} basics : commandes de base\n{pn} search <mot> : rechercher une commande"
-    }
-  },
 
-  onStart: async function ({ message, args, event, role }) {
-    const prefix = getPrefix(event.threadID);
-    const arg = args[0]?.toLowerCase();
+	// =========================================================
+	// CONFIG
+	// =========================================================
 
-    const allCommands = [];
-    const seen = new Set();
+	config: {
+		name: "help",
+		version: "3.0",
+		author: "NTKhang + Modified",
+		countDown: 5,
+		role: 0,
 
-    for (const [name, cmd] of commands) {
-      if (cmd.config.role > role) continue;
-      if (!seen.has(name)) {
-        seen.add(name);
-        allCommands.push(cmd);
-      }
-    }
+		shortDescription: {
+			vi: "Xem danh sách lệnh",
+			en: "View command list"
+		},
 
-    allCommands.sort((a, b) => a.config.name.localeCompare(b.config.name));
+		longDescription: {
+			vi: "Xem danh sách tất cả các lệnh hoặc thông tin chi tiết về một lệnh",
+			en: "View all commands or detailed information about a command"
+		},
 
-    if (!arg) {
-      const categorized = {};
+		category: "info",
 
-      for (const cmd of allCommands) {
-        const cat = cmd.config.category || "other";
-        if (!categorized[cat]) categorized[cat] = [];
-        categorized[cat].push(cmd.config.name);
-      }
+		guide: {
+			vi: "{pn} [tên lệnh]",
+			en: "{pn} [command name]"
+		}
+	},
 
-      const sortedCats = Object.keys(categorized).sort();
+	// =========================================================
+	// LANGS
+	// =========================================================
 
-      let msg = `${fonts.bold("🔍 Available Commands")} 🧰 (${allCommands.length})\n\n`;
+	langs: {
+		vi: {},
+		en: {}
+	},
 
-      for (const cat of sortedCats) {
-        msg += `${fonts.bold(toTitleCase(cat))} (${categorized[cat].length})\n`;
+	// =========================================================
+	// ON START
+	// =========================================================
 
-        const cmds = categorized[cat].sort();
+	onStart: async function ({
+		message,
+		args,
+		event,
+		api
+	}) {
 
-        for (let i = 0; i < cmds.length; i += 3) {
-          const line = cmds
-            .slice(i, i + 3)
-            .map(c => `📄 ${fonts.sansSerif(c)}`)
-            .join("   ");
-          msg += line + "\n";
-        }
+		const {
+			commands,
+			aliases
+		} = global.GoatBot;
 
-        msg += "\n";
-      }
+		if (!commands) {
+			return message.reply(
+				"❌ Commands database not found."
+			);
+		}
 
-      msg += `\n${fonts.bold("➜ Command details:")} ${prefix}menu <commande>\n`;
-      msg += `${fonts.bold("➜ Basics:")} ${prefix}help basics\n`;
-      msg += `${fonts.bold("➜ Search:")} ${prefix}help search <mot>\n`;
-      msg += `${fonts.bold("➜ Developed by @Christus")} 🎀`;
+		// =====================================================
+		// البحث عن الأمر
+		// =====================================================
 
-      return message.reply(msg);
-    }
+		let commandName = args[0]
+			? String(args[0]).toLowerCase()
+			: null;
 
-    if (arg === "basics") {
-      const basicCmdList = [
-        "register", "items", "gift", "bal", "bank", "active", "streak",
-        "vault", "bag", "rank", "ratings", "report", "trade", "uid",
-        "pet", "rosashop", "garden", "arena", "mtls"
-      ];
+		let command = null;
 
-      const validCommands = [];
+		// البحث بالاسم
+		if (commandName) {
+			command =
+				commands.get(commandName);
+		}
 
-      for (const cmdName of basicCmdList) {
-        const cmd = commands.get(cmdName);
-        if (cmd && cmd.config.role <= role) {
-          validCommands.push(cmd);
-        }
-      }
+		// البحث بالـ alias
+		if (
+			!command &&
+			commandName &&
+			aliases &&
+			aliases.has(commandName)
+		) {
+			command =
+				commands.get(
+					aliases.get(commandName)
+				);
+		}
 
-      if (validCommands.length === 0) {
-        return message.reply(fonts.bold("❌ No basic commands available for your role."));
-      }
+		// =====================================================
+		// HELP بوحدها
+		// GIF فقط
+		// =====================================================
 
-      let msg = `${fonts.bold("✅ Basic Commands")}\n\n`;
+		if (!command && !args[0]) {
 
-      for (const cmd of validCommands) {
-        const cfg = cmd.config;
-        const desc = cfg.description?.fr || "No description";
-        msg += `📁 ${prefix}${cfg.name} ${fonts.bold("➜")} ${desc}\n`;
-      }
+			// -------------------------------------------------
+			// اختيار GIF عشوائي
+			// ونضمنو ما يكونش نفس السابق
+			// -------------------------------------------------
 
-      msg += `\n${fonts.bold("➜ Try to Explore more commands!")}\n`;
-      msg += `${fonts.bold("➜ View all:")} ${prefix}help all\n`;
-      msg += `${fonts.bold("➜ Developed by @Christus")} 🎀`;
+			let gifIndex;
 
-      return message.reply(msg);
-    }
+			do {
+				gifIndex = Math.floor(
+					Math.random() *
+					helpGifs.length
+				);
+			} while (
+				gifIndex === lastGifIndex &&
+				helpGifs.length > 1
+			);
 
-    if (arg === "search" || arg === "find") {
-      const searchStr = args[1];
-      if (!searchStr) {
-        return message.reply(
-          `🔎 Search a command by putting a search keyword as argument.\n\n${fonts.bold("EXAMPLE:")} ${prefix}menu search shop`
-        );
-      }
+			lastGifIndex = gifIndex;
 
-      const results = [];
-      const searchLower = searchStr.toLowerCase();
+			const gifUrl =
+				helpGifs[gifIndex];
 
-      for (const [name, cmd] of commands) {
-        if (cmd.config.role > role) continue;
-        const cfg = cmd.config;
-        const searchableText = `${cfg.name} ${cfg.category || ""} ${(cfg.aliases || []).join(" ")} ${cfg.description?.fr || ""}`.toLowerCase();
-        if (searchableText.includes(searchLower)) {
-          results.push(cmd);
-        }
-      }
+			// -------------------------------------------------
+			// كل GIF عندو ملف خاص
+			// -------------------------------------------------
 
-      if (results.length === 0) {
-        return message.reply(`🔎 **Search Results** (0)\n❓ No Results.`);
-      }
+			const gifPath =
+				path.join(
+					__dirname,
+					`help-${gifIndex}.gif`
+				);
 
-      const topResults = results.slice(0, 5);
-      let msg = `${fonts.bold(`🔎 Search Results (${topResults.length})`)}\n\n`;
+			try {
 
-      for (const cmd of topResults) {
-        const cfg = cmd.config;
-        const aliasesList = cfg.aliases && cfg.aliases.length > 0 ? `\nAliases: ${cfg.aliases.join(", ")}` : "";
-        msg += `📁 ${prefix}${fonts.bold(cfg.name)}${aliasesList}\n`;
-        msg += `${fonts.bold("➜")} ${cfg.description?.fr || "No Description"}\n\n`;
-      }
+				// ------------------------------------------------
+				// تحميل GIF غير أول مرة
+				// ------------------------------------------------
 
-      msg += `${fonts.bold("➜ Developed by @Christus")} 🎀`;
+				if (!fs.existsSync(gifPath)) {
 
-      return message.reply(msg);
-    }
+					const response =
+						await axios.get(
+							gifUrl,
+							{
+								responseType:
+									"arraybuffer",
 
-    const cmdName = args[0];
-    let cmd = commands.get(cmdName);
-    if (!cmd) {
-      const alias = aliases.get(cmdName);
-      if (alias) cmd = commands.get(alias);
-    }
+								timeout: 30000
+							}
+						);
 
-    if (!cmd) {
-      return message.reply(fonts.bold(`❌ Command "${cmdName}" does not exist`));
-    }
+					await fs.writeFile(
+						gifPath,
+						Buffer.from(
+							response.data
+						)
+					);
+				}
 
-    const cfg = cmd.config;
+				// ------------------------------------------------
+				// إرسال GIF
+				// ------------------------------------------------
 
-    let usage = cfg.guide?.fr || "No guide available";
-    usage = usage.replace(/{p}/g, prefix).replace(/{n}/g, cfg.name);
+				api.sendMessage(
+					{
+						body:
+							"╔══════════════════════╗\n" +
+							"      📜 𝐂𝐎𝐌𝐌𝐀𝐍𝐃 𝐋𝐈𝐒𝐓\n" +
+							"╚══════════════════════╝\n\n" +
+							"↩️ 𝐑𝐞𝐩𝐥𝐲 𝐨𝐧 𝐭𝐡𝐢𝐬 𝐆𝐈𝐅\n" +
+							"باش نرسل لك قائمة الأوامر.",
 
-    const roleText = cfg.role == 0 ? "All users" : cfg.role == 1 ? "Group admins" : cfg.role == 2 ? "Bot admin" : "Unknown";
+						attachment:
+							fs.createReadStream(
+								gifPath
+							)
+					},
 
-    const detail = `${fonts.bold(`╭─── 📄 ${toTitleCase(cfg.name)} ───`)}
-│ ➤ Name: ${fonts.sansSerif(cfg.name)}
-│ ➤ Author: ${cfg.author || "Unknown"}
-│ ➤ Description: ${cfg.description?.fr || "None"}
-│ ➤ Usage: ${fonts.monospace(usage)}
-│ ➤ Category: ${cfg.category || "other"}
-│ ➤ Cooldown: ${cfg.countDown || 1}s
-│ ➤ Role: ${roleText}
-│ ➤ Aliases: ${cfg.aliases?.length ? cfg.aliases.join(", ") : "None"}
-${fonts.bold("╰────────────────")}`;
+					event.threadID,
 
-    return message.reply(detail);
-  }
+					(err, info) => {
+
+						if (err) {
+
+							console.error(
+								"❌ Help GIF error:",
+								err
+							);
+
+							return;
+						}
+
+						// ------------------------------------------------
+						// تسجيل رسالة GIF في onReply
+						// ------------------------------------------------
+
+						if (
+							info &&
+							info.messageID &&
+							global.GoatBot &&
+							global.GoatBot.onReply
+						) {
+
+							global.GoatBot.onReply.set(
+								info.messageID,
+								{
+									messageID:
+										info.messageID,
+
+									commandName:
+										"help",
+
+									author:
+										event.senderID,
+
+									type:
+										"show_commands"
+								}
+							);
+						}
+					}
+				);
+
+				// =================================================
+				// مهم جداً:
+				// هنا كيتوقف onStart
+				// وما كترسل حتى قائمة
+				// =================================================
+
+				return;
+
+			} catch (error) {
+
+				console.error(
+					"❌ Help GIF error:",
+					error
+				);
+
+				return message.reply(
+					"❌ وقع مشكل فإرسال GIF."
+				);
+			}
+		}
+
+		// =====================================================
+		// الأمر ماكاينش
+		// =====================================================
+
+		if (!command) {
+
+			return message.reply(
+				`❌ الأمر "${args[0]}" ماكاينش.`
+			);
+		}
+
+		// =====================================================
+		// HELP + اسم الأمر
+		// مثال:
+		// help ping
+		// =====================================================
+
+		const config =
+			command.config || {};
+
+		const language =
+			global.GoatBot?.config?.language ||
+			"en";
+
+		// =====================================================
+		// Description
+		// =====================================================
+
+		let description =
+			config.shortDescription ||
+			"No description available.";
+
+		if (
+			typeof description ===
+			"object"
+		) {
+
+			description =
+				description[language] ||
+				description.en ||
+				Object.values(
+					description
+				)[0] ||
+				"No description available.";
+		}
+
+		// =====================================================
+		// Guide
+		// =====================================================
+
+		let guide =
+			config.guide ||
+			"No guide available.";
+
+		if (
+			typeof guide ===
+			"object"
+		) {
+
+			guide =
+				guide[language] ||
+				guide.en ||
+				Object.values(
+					guide
+				)[0] ||
+				"No guide available.";
+		}
+
+		// =====================================================
+		// معلومات الأمر
+		// =====================================================
+
+		return message.reply(
+
+			"╔════════════════════════════╗\n" +
+
+			`      📖 𝐂𝐎𝐌𝐌𝐀𝐍𝐃: ${
+				config.name ||
+				commandName
+			}\n` +
+
+			"╚════════════════════════════╝\n\n" +
+
+			"📝 𝐃𝐞𝐬𝐜𝐫𝐢𝐩𝐭𝐢𝐨𝐧\n" +
+
+			"━━━━━━━━━━━━━━━━━━━━\n" +
+
+			`${description}\n\n` +
+
+			"📚 𝐆𝐮𝐢𝐝𝐞\n" +
+
+			"━━━━━━━━━━━━━━━━━━━━\n" +
+
+			`${guide}\n\n` +
+
+			"⏱️ 𝐂𝐨𝐨𝐥𝐝𝐨𝐰: " +
+
+			`${config.countDown || 0}s`
+		);
+	},
+
+	// =========================================================
+	// ON REPLY
+	// هنا فقط كترسل قائمة الأوامر
+	// =========================================================
+
+	onReply: async function ({
+		message,
+		event,
+		Reply,
+		role
+	}) {
+
+		// =====================================================
+		// التأكد أن Reply تابع لـ help
+		// =====================================================
+
+		if (
+			!Reply ||
+			Reply.type !==
+				"show_commands"
+		) {
+			return;
+		}
+
+		// =====================================================
+		// غير الشخص اللي دار help يقدر يشوف القائمة
+		// =====================================================
+
+		if (
+			Reply.author &&
+			String(Reply.author) !==
+				String(event.senderID)
+		) {
+			return;
+		}
+
+		const {
+			commands
+		} = global.GoatBot;
+
+		if (!commands) {
+
+			return message.reply(
+				"❌ ماقدرتش نجيب الأوامر."
+			);
+		}
+
+		// =====================================================
+		// Role
+		// =====================================================
+
+		const userRole =
+			typeof role === "number"
+				? role
+				: 0;
+
+		// =====================================================
+		// أسماء الفئات
+		// =====================================================
+
+		const categoryNames = {
+
+			admin:
+				"👑 𝐀𝐃𝐌𝐈𝐍",
+
+			config:
+				"⚙️ 𝐂𝐎𝐍𝐅𝐈𝐆",
+
+			info:
+				"📚 𝐈𝐍𝐅𝐎",
+
+			utility:
+				"🛠️ 𝐔𝐓𝐈𝐋𝐈𝐓𝐘",
+
+			game:
+				"🎮 𝐆𝐀𝐌𝐄",
+
+			fun:
+				"😂 𝐅𝐔𝐍",
+
+			media:
+				"🎵 𝐌𝐄𝐃𝐈𝐀",
+
+			nsfw:
+				"🔞 𝐍𝐒𝐅𝐖",
+
+			owner:
+				"👑 𝐎𝐖𝐍𝐄𝐑",
+
+			other:
+				"📦 𝐎𝐓𝐇𝐄𝐑"
+		};
+
+		// =====================================================
+		// ترتيب الفئات
+		// =====================================================
+
+		const categoryOrder = [
+
+			"admin",
+
+			"config",
+
+			"info",
+
+			"utility",
+
+			"game",
+
+			"fun",
+
+			"media",
+
+			"nsfw",
+
+			"owner",
+
+			"other"
+		];
+
+		const categories = {};
+
+		// =====================================================
+		// جمع الأوامر حسب الفئة
+		// =====================================================
+
+		for (
+			const [
+				name,
+				command
+			] of commands
+		) {
+
+			try {
+
+				if (
+					!command ||
+					!command.config
+				) {
+					continue;
+				}
+
+				const config =
+					command.config;
+
+				// الأوامر المخفية
+				if (
+					config.hidden === true
+				) {
+					continue;
+				}
+
+				// Role ديال الأمر
+				const commandRole =
+					typeof config.role ===
+					"number"
+						? config.role
+						: 0;
+
+				if (
+					commandRole >
+					userRole
+				) {
+					continue;
+				}
+
+				// Category
+				const category =
+					String(
+						config.category ||
+						"other"
+					).toLowerCase();
+
+				if (
+					!categories[
+						category
+					]
+				) {
+
+					categories[
+						category
+					] = [];
+				}
+
+				categories[
+					category
+				].push(name);
+
+			} catch (error) {
+
+				console.error(
+					`Help error: ${name}`,
+					error
+				);
+			}
+		}
+
+		// =====================================================
+		// ترتيب الأوامر أبجدياً
+		// =====================================================
+
+		for (
+			const category
+			of Object.keys(
+				categories
+			)
+		) {
+
+			categories[
+				category
+			].sort(
+				(a, b) =>
+					a.localeCompare(b)
+			);
+		}
+
+		// =====================================================
+		// بناء القائمة
+		// =====================================================
+
+		let list = "";
+
+		let totalCommands = 0;
+
+		const printed =
+			new Set();
+
+		// =====================================================
+		// الفئات الرئيسية
+		// =====================================================
+
+		for (
+			const category
+			of categoryOrder
+		) {
+
+			const commandsList =
+				categories[
+					category
+				];
+
+			if (
+				!commandsList ||
+				commandsList.length === 0
+			) {
+				continue;
+			}
+
+			printed.add(
+				category
+			);
+
+			totalCommands +=
+				commandsList.length;
+
+			const title =
+				categoryNames[
+					category
+				] ||
+				`📁 ${category.toUpperCase()}`;
+
+			// عنوان الفئة
+			list +=
+				"\n" +
+				"━━━━━━━━━━━━━━━━━━━━\n" +
+				`       ${title}\n` +
+				"━━━━━━━━━━━━━━━━━━━━\n";
+
+			// أوامر الفئة
+			for (
+				const commandName
+				of commandsList
+			) {
+
+				list +=
+					`   ✦ ${commandName}\n`;
+			}
+		}
+
+		// =====================================================
+		// الفئات الأخرى
+		// =====================================================
+
+		for (
+			const category
+			of Object.keys(
+				categories
+			)
+		) {
+
+			if (
+				printed.has(
+					category
+				)
+			) {
+				continue;
+			}
+
+			const commandsList =
+				categories[
+					category
+				];
+
+			if (
+				!commandsList ||
+				commandsList.length === 0
+			) {
+				continue;
+			}
+
+			totalCommands +=
+				commandsList.length;
+
+			const title =
+				categoryNames[
+					category
+				] ||
+				`📁 ${category.toUpperCase()}`;
+
+			list +=
+				"\n" +
+				"━━━━━━━━━━━━━━━━━━━━\n" +
+				`       ${title}\n` +
+				"━━━━━━━━━━━━━━━━━━━━\n";
+
+			for (
+				const commandName
+				of commandsList
+			) {
+
+				list +=
+					`   ✦ ${commandName}\n`;
+			}
+		}
+
+		// =====================================================
+		// إذا ماكاين حتى أمر
+		// =====================================================
+
+		if (!list.trim()) {
+
+			return message.reply(
+				"❌ ماكاين حتى أمر متاح."
+			);
+		}
+
+		// =====================================================
+		// Prefix
+		// =====================================================
+
+		let prefix = "";
+
+		try {
+
+			prefix =
+				global.GoatBot
+					.config
+					.prefix ||
+				"";
+
+		} catch (e) {
+
+			prefix = "";
+		}
+
+		// =====================================================
+		// القائمة النهائية
+		// =====================================================
+
+		const finalMessage =
+
+			"╔══════════════════════════╗\n" +
+			"       📜 𝐂𝐎𝐌𝐌𝐀𝐍𝐃 𝐋𝐈𝐒𝐓\n" +
+			"╚══════════════════════════╝\n" +
+
+			list +
+
+			"\n" +
+			"━━━━━━━━━━━━━━━━━━━━\n" +
+
+			`📊 𝐓𝐨𝐭𝐚𝐥: ${totalCommands} 𝐂𝐨𝐦𝐦𝐚𝐧𝐝𝐬\n` +
+
+			`💡 𝐔𝐬𝐞: ${prefix}help <command>\n` +
+
+			"━━━━━━━━━━━━━━━━━━━━";
+
+		// =====================================================
+		// إرسال القائمة
+		// =====================================================
+
+		return message.reply(
+			finalMessage
+		);
+	}
 };

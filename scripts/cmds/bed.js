@@ -3,14 +3,16 @@ const fs = require("fs");
 const path = require("path");
 
 const mahmud = async () => {
-const base = await axios.get("https://raw.githubusercontent.com/mahmudx7/HINATA/main/baseApiUrl.json");
+  const base = await axios.get(
+    "https://raw.githubusercontent.com/mahmudx7/HINATA/main/baseApiUrl.json"
+  );
   return base.data.mahmud;
 };
 
 /**
-* @author MahMUD
-* @author: do not delete it
-*/
+ * @author MahMUD
+ * @author: do not delete it
+ */
 
 module.exports = {
   config: {
@@ -21,12 +23,15 @@ module.exports = {
     role: 0,
     longDescription: "Generate anime-style bed hug image",
     category: "love",
-    guide: "{pn} @mention"
+    guide: "{pn} (reply to a person's message)"
   },
 
   onStart: async function ({ message, event, api }) {
     try {
-      const obfuscatedAuthor = String.fromCharCode(77, 97, 104, 77, 85, 68);
+      const obfuscatedAuthor = String.fromCharCode(
+        77, 97, 104, 77, 85, 68
+      );
+
       if (module.exports.config.author.trim() !== obfuscatedAuthor) {
         return api.sendMessage(
           "❌ | You are not authorized to change the author name.",
@@ -35,13 +40,18 @@ module.exports = {
         );
       }
 
-      const mention = Object.keys(event.mentions);
-      if (mention.length === 0) {
-        return message.reply("Please replay mention someone");
+      // تحديد الشخص من الرسالة التي رددت عليها
+      if (
+        !event.messageReply ||
+        !event.messageReply.senderID
+      ) {
+        return message.reply(
+          "❌ | خاصك دير Reply على رسالة الشخص اللي بغيتي."
+        );
       }
 
       const senderID = event.senderID;
-      const targetID = mention[0];
+      const targetID = event.messageReply.senderID;
 
       const base = await mahmud();
       const apiURL = `${base}/api/bed`;
@@ -54,11 +64,15 @@ module.exports = {
         { responseType: "arraybuffer" }
       );
 
-      const imgPath = path.join(__dirname, `bed_${senderID}_${targetID}.png`);
-      fs.writeFileSync(imgPath, Buffer.from(response.data, "binary"));
+      const imgPath = path.join(
+        __dirname,
+        `bed_${senderID}_${targetID}.png`
+      );
 
-      message.reply({
-        body: "Here’s your image😘",
+      fs.writeFileSync(imgPath, Buffer.from(response.data));
+
+      await message.reply({
+        body: "Here's your image 😘",
         attachment: fs.createReadStream(imgPath)
       });
 
@@ -69,8 +83,8 @@ module.exports = {
       }, 10000);
 
     } catch (err) {
-      console.error("Error in sommand:", err.message || err);
-      message.reply("🥹error, contact MahMUD.");
+      console.error("Error in command:", err.message || err);
+      message.reply("🥹 Error, contact MahMUD.");
     }
   }
 };

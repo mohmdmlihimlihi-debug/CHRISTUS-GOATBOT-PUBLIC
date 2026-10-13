@@ -1,82 +1,67 @@
-const axios = require("axios");
+const axios = require('axios');
+const jimp = require("jimp");
 const fs = require("fs");
-const path = require("path");
-
-const baseApiUrl = async () => {
-        const base = await axios.get("https://raw.githubusercontent.com/mahmudx7/HINATA/main/baseApiUrl.json");
-        return base.data.mahmud;
-};
 
 module.exports = {
-        config: {
-                name: "marry",
-                aliases: ["biye"],
-                version: "1.7",
-                author: "MahMUD",
-                countDown: 10,
-                role: 0,
-                description: {
-                        en: "Generate a marriage image by mentioning someone",
-                        vi: "Tạo hình ảnh kết hôn bằng cách gắn thẻ ai đó"
-                },
-                category: "love",
-                guide: {
-                        en: '   {pn} <@tag>: Tag someone to marry',
-                        vi: '   {pn} <@tag>: Gắn thẻ ai đó để kết hôn'
-                }
-        },
+    config: {
+        name: "marry",
+        aliases: ["marryv4", "marryfour"],
+        version: "1.0",
+        author: "AKASH",
+        countDown: 5,
+        role: 0,
+        shortDescription: "get a wife",
+        longDescription: "mention your love",
+        category: "love",
+        guide: "{pn} (reply)"
+    },
 
-        langs: {
-                en: {
-                        noTarget: "× Baby, please mention someone to marry! 💍",
-                        success: "Here’s your marriage image baby! 🙈",
-                        error: "× API error: %1. Contact MahMUD for help.\n•WhatsApp: 01836298139"
-                },
-                vi: {
-                        noTarget: "× Cưng ơi, hãy gắn thẻ ai đó để kết hôn đi! 💍",
-                        success: "Ảnh kết hôn của cưng đây! 🙈",
-                        error: "× Lỗi: %1. Liên hệ MahMUD để hỗ trợ.\n•WhatsApp: 01836298139"
-                }
-        },
+    onStart: async function ({ message, event }) {
+        let one = event.senderID;
+        let two;
 
-        onStart: async function ({ api, event, message, getLang }) {
-                const authorName = String.fromCharCode(77, 97, 104, 77, 85, 68);
-                if (this.config.author !== authorName) {
-                        return api.sendMessage("You are not authorized to change the author name.", event.threadID, event.messageID);
-                }
-
-                const mentions = Object.keys(event.mentions);
-                if (mentions.length === 0) return message.reply(getLang("noTarget"));
-
-                const senderID = event.senderID;
-                const targetID = mentions[0];
-                const cacheDir = path.join(__dirname, "cache");
-                if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
-                const imgPath = path.join(cacheDir, `marry_${senderID}_${targetID}.png`);
-
-                try {
-                        api.setMessageReaction("⏳", event.messageID, () => {}, true);
-
-                        const response = await axios.post(`${await baseApiUrl()}/api/marry`, 
-                                { senderID, targetID }, 
-                                { responseType: "arraybuffer" }
-                        );
-
-                        fs.writeFileSync(imgPath, Buffer.from(response.data));
-
-                        return message.reply({
-                                body: getLang("success"),
-                                attachment: fs.createReadStream(imgPath)
-                        }, () => {
-                                api.setMessageReaction("✅", event.messageID, () => {}, true);
-                                if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
-                        });
-
-                } catch (err) {
-                        console.error("Marry Error:", err);
-                        api.setMessageReaction("❌", event.messageID, () => {}, true);
-                        if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
-                        return message.reply(getLang("error", err.message));
-                }
+        if (event.messageReply) {
+            two = event.messageReply.senderID;
+        } else {
+            const mention = Object.keys(event.mentions);
+            if (mention.length === 0)
+                return message.reply("رد على رسالة الشخص اللي بغيتي وتبّعها بالأمر marry.");
+            two = mention[0];
         }
+
+        try {
+            const ptth = await bal(one, two);
+            message.reply({
+                body: "got married 😍",
+                attachment: fs.createReadStream(ptth)
+            });
+        } catch (err) {
+            message.reply("وقع خطأ أثناء إنشاء الصورة، عاود المحاولة.");
+        }
+    }
 };
+
+async function bal(one, two) {
+    const avone = await jimp.read(
+        `https://graph.facebook.com/${one}/picture?width=512&height=512`
+    );
+    avone.circle();
+
+    const avtwo = await jimp.read(
+        `https://graph.facebook.com/${two}/picture?width=512&height=512`
+    );
+    avtwo.circle();
+
+    const pth = "marryv4.png";
+
+    const img = await jimp.read(
+        "https://i.postimg.cc/XN1TcH3L/tumblr-mm9nfpt7w-H1s490t5o1-1280.jpg"
+    );
+
+    img.resize(1024, 684)
+       .composite(avone.resize(85, 85), 204, 160)
+       .composite(avtwo.resize(80, 80), 315, 105);
+
+    await img.writeAsync(pth);
+    return pth;
+            }

@@ -7,7 +7,7 @@ if (!global.temp.welcomeEvent)
 module.exports = {
 	config: {
 		name: "welcome",
-		version: "1.7",
+		version: "1.8",
 		author: "Fadi",
 		category: "events"
 	},
@@ -18,10 +18,10 @@ module.exports = {
 			session2: "trưa",
 			session3: "chiều",
 			session4: "tối",
-			welcomeMessage: "✅ تم ربط البوت بالمجموعة بنجاح!\n👑 صاحب البوت: فادي\n📊 الحالة: 100%",
+			welcomeMessage: "✅ تم دخول البوت إلى المجموعة بنجاح!\n👑 صاحب البوت: فادي\n📊 الحالة: 100%",
 			multiple1: "bạn",
 			multiple2: "các bạn",
-			defaultWelcomeMessage: "أهلاً {userName} ❤️‍🔥\nنورت مجموعتنا بوجودك ✨\nنتمنى لك أوقاتاً جميلة بيننا 🌹"
+			defaultWelcomeMessage: "أهلاً وسهلاً بك يا {userName} ❤️‍🔥\nنورت مجموعتنا: {threadName} ✨\n🕒 وقت الانضمام: {joinTime}"
 		},
 
 		en: {
@@ -30,117 +30,137 @@ module.exports = {
 			session3: "afternoon",
 			session4: "evening",
 
-			welcomeMessage: "╔════════════════════╗\n   🎉 تم دخول البوت بنجاح 🎉\n╚════════════════════╝\n\n✅ تم ربط البوت بالمجموعة\n👑 صاحب البوت: فادي\n📊 الحالة: 100%\n💚 البوت جاهز للخدمة!",
+			welcomeMessage: "╔══════════════════════╗\n   ✅ تم دخول البوت بنجاح\n╚══════════════════════╝\n\n🔗 تم ربط البوت بالمجموعة\n👑 صاحب البوت: فادي\n📊 الحالة: 100%\n💚 البوت جاهز للخدمة!",
 
 			multiple1: "أنت",
 			multiple2: "أنتم",
 
-			defaultWelcomeMessage: `╔══════════════════════╗
-   🌸 نــورتــي مــجــمــوعــتــنــا 🌸
-╚══════════════════════╝
+			defaultWelcomeMessage: `╔══════════════════════════╗
+       🌟 أَهْلًا وَسَهْلًا بِكَ 🌟
+╚══════════════════════════╝
 
 💖 مرحباً بك يا {userName} ❤️‍🔥
-✨ نورتينا وزدتي مجموعتنا جمالاً
-🏡 ولاتي وحدة من عائلتنا الجميلة
+✨ نورت مجموعتنا: {threadName}
+🕒 وقت الانضمام: {joinTime}
 
-┏━━━━━━━━━━━━━━━━━━┓
-┃ 🦋 نتمنى ليك أيام زوينة معانا
-┃ 💎 الاحترام أساس المحبة
-┃ 🌿 خليك ديما بالخير والفرحة
-┗━━━━━━━━━━━━━━━━━━┛
+╭━━━━━━━━━━━━━━━━━━━━╮
+🌹 يسعدنا انضمامك إلى عائلتنا،
+ونأمل أن تجد بيننا الودّ والاحترام.
 
-🤍 سعداء بانضمامك لعائلتنا
-🌹 احترمي الجميع واستمتعي بوقتك
+🤝 نرجو منك الالتزام بالأدب
+والاحترام المتبادل مع جميع الأعضاء.
 
-ــــــــــــــــــــــــــــــــــــ
-👑 𓆩 F A D I 𓆪 👑
-💫 أهلاً بك بين ناسك وأحبابك
-ــــــــــــــــــــــــــــــــــــ`
+🦋 انشر المحبة والكلمات الطيبة،
+واجعل وجودك إضافة جميلة لمجموعتنا.
+
+💎 نتمنى لك وقتاً ممتعاً ومفيداً معنا.
+╰━━━━━━━━━━━━━━━━━━━━╯
+
+       ♛ 𓆩 F A D I 𓆪 ♛
+╚══════════════════════════╝`
 		}
 	},
 
 	onStart: async ({ threadsData, message, event, api, getLang }) => {
-		if (event.logMessageType == "log:subscribe")
-			return async function () {
-				const { threadID } = event;
-				const { nickNameBot } = global.GoatBot.config;
-				const prefix = global.utils.getPrefix(threadID);
-				const dataAddedParticipants =
-					event.logMessageData.addedParticipants;
+		if (event.logMessageType != "log:subscribe")
+			return;
 
-				// عندما يدخل البوت إلى المجموعة
-				if (
-					dataAddedParticipants.some(
-						item => item.userFbId == api.getCurrentUserID()
-					)
-				) {
-					if (nickNameBot)
-						api.changeNickname(
-							nickNameBot,
-							threadID,
-							api.getCurrentUserID()
-						);
+		return async function () {
+			const { threadID } = event;
+			const { nickNameBot } = global.GoatBot.config;
+			const prefix = global.utils.getPrefix(threadID);
+			const participants =
+				event.logMessageData.addedParticipants || [];
 
-					return message.send(getLang("welcomeMessage", prefix));
+			// رسالة دخول البوت نفسه
+			if (
+				participants.some(
+					item => item.userFbId == api.getCurrentUserID()
+				)
+			) {
+				if (nickNameBot) {
+					api.changeNickname(
+						nickNameBot,
+						threadID,
+						api.getCurrentUserID()
+					);
 				}
 
-				// عندما يدخل عضو جديد
-				if (!global.temp.welcomeEvent[threadID]) {
-					global.temp.welcomeEvent[threadID] = {
-						joinTimeout: null,
-						dataAddedParticipants: []
-					};
-				}
+				return message.send(getLang("welcomeMessage", prefix));
+			}
 
-				global.temp.welcomeEvent[threadID].dataAddedParticipants.push(
-					...dataAddedParticipants
-				);
+			if (!global.temp.welcomeEvent[threadID]) {
+				global.temp.welcomeEvent[threadID] = {
+					joinTimeout: null,
+					dataAddedParticipants: []
+				};
+			}
 
-				clearTimeout(
-					global.temp.welcomeEvent[threadID].joinTimeout
-				);
+			global.temp.welcomeEvent[threadID]
+				.dataAddedParticipants.push(...participants);
 
-				global.temp.welcomeEvent[threadID].joinTimeout =
-					setTimeout(async function () {
+			clearTimeout(
+				global.temp.welcomeEvent[threadID].joinTimeout
+			);
+
+			global.temp.welcomeEvent[threadID].joinTimeout =
+				setTimeout(async function () {
+					try {
 						const threadData = await threadsData.get(threadID);
 
-						if (threadData.settings.sendWelcomeMessage == false)
+						if (threadData.settings.sendWelcomeMessage == false) {
+							delete global.temp.welcomeEvent[threadID];
 							return;
+						}
 
-						const participants =
+						const added =
 							global.temp.welcomeEvent[threadID]
 								.dataAddedParticipants;
 
-						const dataBanned = threadData.data.banned_ban || [];
-						const threadName = threadData.threadName;
-						const userName = [];
+						const banned = threadData.data.banned_ban || [];
+						const names = [];
 						const mentions = [];
 
-						for (const user of participants) {
+						for (const user of added) {
 							if (
-								dataBanned.some(
+								banned.some(
 									item => item.id == user.userFbId
 								)
 							) continue;
 
-							userName.push(user.fullName);
+							names.push(user.fullName);
 							mentions.push({
 								tag: user.fullName,
 								id: user.userFbId
 							});
 						}
 
-						if (userName.length == 0) {
-							delete global.temp.welcomeEvent[threadID];
+						if (names.length === 0)
 							return;
-						}
 
-						let {
-							welcomeMessage = getLang("defaultWelcomeMessage")
-						} = threadData.data;
+						const now = new Date();
+
+						const joinTime = now.toLocaleTimeString("en-GB", {
+							hour: "2-digit",
+							minute: "2-digit",
+							timeZone: "Africa/Casablanca"
+						});
+
+						const joinDate = now.toLocaleDateString("en-GB", {
+							day: "2-digit",
+							month: "2-digit",
+							year: "numeric",
+							timeZone: "Africa/Casablanca"
+						});
+
+						const threadName = threadData.threadName || "مجموعتنا";
+
+						let welcomeMessage =
+							threadData.data.welcomeMessage ||
+							getLang("defaultWelcomeMessage");
 
 						const form = {
-							mentions: welcomeMessage.match(/\{userNameTag\}/g)
+							mentions: /\{userNameTag\}/.test(welcomeMessage)
 								? mentions
 								: null
 						};
@@ -148,35 +168,46 @@ module.exports = {
 						welcomeMessage = welcomeMessage
 							.replace(
 								/\{userName\}|\{userNameTag\}/g,
-								userName.join(", ")
+								names.join("، ")
 							)
 							.replace(
 								/\{boxName\}|\{threadName\}/g,
 								threadName
 							)
-							.replace(/\{multiple\}/g,
-								userName.length > 1 ? "أنتم" : "أنت"
+							.replace(
+								/\{joinTime\}/g,
+								joinTime
+							)
+							.replace(
+								/\{joinDate\}/g,
+								joinDate
+							)
+							.replace(
+								/\{multiple\}/g,
+								names.length > 1 ? "أنتم" : "أنت"
 							);
 
 						form.body = welcomeMessage;
 
 						if (threadData.data.welcomeAttachment) {
 							const files = threadData.data.welcomeAttachment;
-							const attachments = files.map(file =>
-								drive.getFile(file, "stream")
+
+							const attachments = await Promise.allSettled(
+								files.map(file => drive.getFile(file, "stream"))
 							);
 
-							form.attachment = (
-								await Promise.allSettled(attachments)
-							)
-								.filter(({ status }) => status == "fulfilled")
-								.map(({ value }) => value);
+							form.attachment = attachments
+								.filter(item => item.status === "fulfilled")
+								.map(item => item.value);
 						}
 
 						await message.send(form);
+					} catch (error) {
+						console.error("Welcome event error:", error);
+					} finally {
 						delete global.temp.welcomeEvent[threadID];
-					}, 1500);
-			};
+					}
+				}, 1500);
+		};
 	}
 };
-

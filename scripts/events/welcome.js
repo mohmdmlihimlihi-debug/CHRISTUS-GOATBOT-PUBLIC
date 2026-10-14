@@ -18,7 +18,7 @@ module.exports = {
 			session2: "trưa",
 			session3: "chiều",
 			session4: "tối",
-			welcomeMessage: "✅ تم دخول البوت إلى المجموعة بنجاح!\n👑 صاحب البوت: فادي\n📊 الحالة: 100%",
+			welcomeMessage: "✅ تم دخول البوت إلى المجموعة بنجاح!\n👑 صاحب البوت: سحتوت\n📊 الحالة: 100%",
 			multiple1: "bạn",
 			multiple2: "các bạn",
 			defaultWelcomeMessage: "أهلاً وسهلاً بك يا {userName} ❤️‍🔥\nنورت مجموعتنا: {threadName} ✨\n🕒 وقت الانضمام: {joinTime}"
@@ -56,7 +56,7 @@ module.exports = {
 💎 نتمنى لك وقتاً ممتعاً ومفيداً معنا.
 ╰━━━━━━━━━━━━━━━━━━━━╯
 
-       ♛ 𓆩 F A D I 𓆪 ♛
+       ♛ 𓆩سحتوت 𓆪 ♛
 ╚══════════════════════════╝`
 		}
 	},
